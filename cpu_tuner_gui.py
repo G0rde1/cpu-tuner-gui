@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# CPU Tuner - десктопное приложение для управления CPU
+# cpu_tuner_gui - десктопное приложение для управления CPU
 
 import tkinter as tk
 from tkinter import ttk, messagebox
@@ -7,12 +7,13 @@ import subprocess
 import psutil
 import threading
 import time
+import os
 
 class CPUTunerApp:
     def __init__(self, root):
         self.root = root
         self.root.title("CPU Tuner - Управление процессором")
-        self.root.geometry("700x550")
+        self.root.geometry("750x600")
         self.root.resizable(True, True)
         
         # Переменные
@@ -50,9 +51,12 @@ class CPUTunerApp:
         temp_frame.pack(fill="x", padx=20, pady=10)
         
         self.temp_labels = []
+        temp_grid = tk.Frame(temp_frame)
+        temp_grid.pack()
+        
         for i in range(8):
-            label = tk.Label(temp_frame, text=f"Core {i}: --°C", font=('Arial', 10))
-            label.pack(anchor="w")
+            label = tk.Label(temp_grid, text=f"Core {i}: --°C", font=('Arial', 10), width=15, anchor="w")
+            label.grid(row=i//2, column=i%2, padx=10, pady=2, sticky="w")
             self.temp_labels.append(label)
         
         # Рамка с управлением governor
@@ -61,7 +65,7 @@ class CPUTunerApp:
         
         tk.Label(gov_frame, text="Текущий режим:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
         
-        self.gov_combo = ttk.Combobox(gov_frame, textvariable=self.current_governor, values=self.governors, state="readonly")
+        self.gov_combo = ttk.Combobox(gov_frame, textvariable=self.current_governor, values=self.governors, state="readonly", width=15)
         self.gov_combo.grid(row=0, column=1, padx=5, pady=5)
         
         self.apply_btn = tk.Button(gov_frame, text="Применить", command=self.set_governor, bg="#4CAF50", fg="white", padx=10)
@@ -72,12 +76,12 @@ class CPUTunerApp:
         usage_frame.pack(fill="x", padx=20, pady=10)
         
         self.cpu_usage_label = tk.Label(usage_frame, text="Общая загрузка: --%", font=('Arial', 12, 'bold'))
-        self.cpu_usage_label.pack(anchor="w")
+        self.cpu_usage_label.pack(anchor="w", pady=5)
         
-        self.cpu_cores_usage = []
         cores_usage_frame = tk.Frame(usage_frame)
         cores_usage_frame.pack(fill="x", pady=5)
         
+        self.cpu_cores_usage = []
         for i in range(8):
             label = tk.Label(cores_usage_frame, text=f"Core {i}: --%", width=12, anchor="w")
             label.grid(row=i//4, column=i%4, padx=5, pady=2, sticky="w")
@@ -99,14 +103,12 @@ class CPUTunerApp:
         
     def get_cpu_info(self):
         try:
-            # Модель CPU
             with open('/proc/cpuinfo', 'r') as f:
                 for line in f:
                     if 'model name' in line:
                         model = line.split(':')[1].strip()
                         break
-            # Количество ядер
-            cores = psutil.cpu_count()
+            cores = psutil.cpu_count(logical=True)
             return model, cores
         except:
             return "Не определено", 0
@@ -114,10 +116,10 @@ class CPUTunerApp:
     def get_temperatures(self):
         temps = {}
         try:
-            output = subprocess.check_output(['sensors'], text=True)
+            output = subprocess.check_output(['sensors'], text=True, stderr=subprocess.DEVNULL)
+            import re
             for line in output.split('\n'):
-                if 'Core' in line or 'Tctl' in line:
-                    import re
+                if 'Core' in line or 'Tctl' in line or 'Package' in line:
                     match = re.search(r'\+(\d+\.\d+)', line)
                     if match:
                         name = line.split(':')[0].strip()
@@ -137,53 +139,55 @@ class CPUTunerApp:
         gov = self.current_governor.get()
         if not gov:
             return
-            
         try:
-            for cpu in range(psutil.cpu_count()):
+            cpu_count = psutil.cpu_count(logical=True)
+            for cpu in range(cpu_count):
                 with open(f'/sys/devices/system/cpu/cpu{cpu}/cpufreq/scaling_governor', 'w') as f:
                     f.write(gov)
             self.status_label.config(text=f"✅ Governor изменён на {gov}", fg="green")
             self.refresh_data()
         except Exception as e:
-            self.status_label.config(text=f"❌ Ошибка: запустите с sudo", fg="red")
-            messagebox.showerror("Ошибка", "Нужны права root!\nЗапустите: sudo python3 cpu_tuner_gui.py")
+            self.status_label.config(text=f"❌ Ошибка: {str(e)}", fg="red")
             
     def refresh_data(self):
-        # CPU информация
-        model, cores = self.get_cpu_info()
-        self.cpu_model_label.config(text=f"Модель: {model[:60]}")
-        self.cpu_cores_label.config(text=f"Ядра: {cores}")
-        
-        # Governor
-        gov = self.get_governor()
-        self.current_governor.set(gov)
-        
-        # Температуры
-        temps = self.get_temperatures()
-        for i, label in enumerate(self.temp_labels):
-            core_name = f"Core {i}"
-            if core_name in temps:
-                temp = temps[core_name]
-                label.config(text=f"{core_name}: {temp}°C")
-                if temp > 80:
-                    label.config(fg="red")
-                elif temp > 70:
-                    label.config(fg="orange")
+        try:
+            # CPU информация
+            model, cores = self.get_cpu_info()
+            self.cpu_model_label.config(text=f"Модель: {model[:60]}")
+            self.cpu_cores_label.config(text=f"Ядра: {cores}")
+            
+            # Governor
+            gov = self.get_governor()
+            self.current_governor.set(gov)
+            
+            # Температуры
+            temps = self.get_temperatures()
+            for i, label in enumerate(self.temp_labels):
+                core_name = f"Core {i}"
+                if core_name in temps:
+                    temp = temps[core_name]
+                    label.config(text=f"{core_name}: {temp}°C")
+                    if temp > 80:
+                        label.config(fg="red")
+                    elif temp > 70:
+                        label.config(fg="orange")
+                    else:
+                        label.config(fg="white")
                 else:
-                    label.config(fg="white")
-            else:
-                label.config(text=f"Core {i}: --°C")
-        
-        # Загрузка CPU
-        cpu_percent = psutil.cpu_percent(interval=0.5)
-        self.cpu_usage_label.config(text=f"Общая загрузка: {cpu_percent}%")
-        
-        per_cpu = psutil.cpu_percent(interval=0.5, percpu=True)
-        for i, label in enumerate(self.cpu_cores_usage):
-            if i < len(per_cpu):
-                label.config(text=f"Core {i}: {per_cpu[i]}%")
-            else:
-                label.config(text=f"Core {i}: --%")
+                    label.config(text=f"Core {i}: --°C")
+            
+            # Загрузка CPU
+            cpu_percent = psutil.cpu_percent(interval=0.3)
+            self.cpu_usage_label.config(text=f"Общая загрузка: {cpu_percent}%")
+            
+            per_cpu = psutil.cpu_percent(interval=0.3, percpu=True)
+            for i, label in enumerate(self.cpu_cores_usage):
+                if i < len(per_cpu):
+                    label.config(text=f"Core {i}: {per_cpu[i]}%")
+                else:
+                    label.config(text=f"Core {i}: --%")
+        except Exception as e:
+            self.status_label.config(text=f"Ошибка: {str(e)}", fg="red")
                 
     def monitor_loop(self):
         while self.monitoring:
@@ -194,7 +198,7 @@ class CPUTunerApp:
         if not self.monitoring:
             self.monitoring = True
             self.monitor_btn.config(text="⏸ Остановить мониторинг", bg="#f44336")
-            self.status_label.config(text="🟢 Мониторинг запущен (обновление каждые 2 сек)", fg="blue")
+            self.status_label.config(text="🟢 Мониторинг запущен", fg="blue")
             thread = threading.Thread(target=self.monitor_loop, daemon=True)
             thread.start()
         else:
