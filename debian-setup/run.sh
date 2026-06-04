@@ -1,5 +1,5 @@
 #!/bin/bash
 # Быстрый запуск CPU Tuner GUI
 
-cd /opt/cpu-tuner-gui
+cd cpu-tuner
 sudo python3 cpu_tuner_gui.py
