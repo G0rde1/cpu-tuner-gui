@@ -1,20 +1,19 @@
-# 🖥️ CPU Tuner GUI - Управление процессором
+# 🖥️ CPU Tuner - Управление процессором в Linux
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Linux](https://img.shields.io/badge/Platform-Linux-green)](https://www.linux.org)
-
-**CPU Tuner GUI** — десктопное приложение для мониторинга и управления CPU в Linux.
+**CPU Tuner** — десктопное приложение для мониторинга и управления CPU.
 
 ## ✨ Возможности
 
-- 📊 Мониторинг загрузки CPU в реальном времени
-- 🌡️ Отслеживание температур всех ядер
+- 📊 Мониторинг загрузки CPU
+- 🌡️ Температуры всех ядер
 - ⚡ Переключение CPU governors
-- 📈 Нагрузка на каждое ядро
+- 🔄 Автообновление каждые 2 секунды
+
+---
 
 ## 📦 Установка
 
 ```bash
-git clone https://github.com/G0rde1/cpu-tuner-gui.git
-cd cpu-tuner-gui
+git clone https://github.com/G0rde1/cpu-tuner.git
+cd cpu-tuner
 sudo ./install.sh
