@@ -6,3 +6,4 @@ pycache/
 .DS_Store
 venv/
 .venv/
+screenshots/
